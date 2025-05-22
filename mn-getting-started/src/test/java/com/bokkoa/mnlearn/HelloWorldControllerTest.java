@@ -1,19 +1,20 @@
 package com.bokkoa.mnlearn;
-
 import io.micronaut.http.HttpStatus;
 import io.micronaut.http.client.HttpClient;
 import io.micronaut.http.client.annotation.Client;
-import io.micronaut.runtime.EmbeddedApplication;
 import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.Assertions;
 
 import jakarta.inject.Inject;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 @MicronautTest
 class HelloWorldControllerTest {
+
+    private static final Logger LOG = LoggerFactory.getLogger(HelloWorldControllerTest.class);
 
     @Inject
     @Client("/")
@@ -22,7 +23,7 @@ class HelloWorldControllerTest {
     @Test
     void helloWorldEndpointResponseWithTextHelloWorld() {
         var response = httpClient.toBlocking().retrieve("/hello");
-
+        LOG.trace("Response: {}", response);
         assertEquals("Hello from service!", response);
     }
 

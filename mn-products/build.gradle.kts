@@ -19,6 +19,16 @@ dependencies {
     runtimeOnly("ch.qos.logback:logback-classic")
     testImplementation("io.micronaut:micronaut-http-client")
     implementation("net.datafaker:datafaker:2.4.3")
+
+    annotationProcessor("io.micronaut.openapi:micronaut-openapi")
+    compileOnly("io.micronaut.openapi:micronaut-openapi-annotations")
+    runtimeOnly("org.yaml:snakeyaml")
+
+    // JWT
+    annotationProcessor("io.micronaut.security:micronaut-security-annotations")
+    implementation("io.micronaut.security:micronaut-security-jwt")
+    aotPlugins(platform("io.micronaut.platform:micronaut-platform:4.8.2"))
+    aotPlugins("io.micronaut.security:micronaut-security-aot")
 }
 
 

@@ -29,6 +29,9 @@ dependencies {
     implementation("io.micronaut.security:micronaut-security-jwt")
     aotPlugins(platform("io.micronaut.platform:micronaut-platform:4.8.2"))
     aotPlugins("io.micronaut.security:micronaut-security-aot")
+
+    // RXJava
+    implementation("io.micronaut.rxjava3:micronaut-rxjava3")
 }
 
 

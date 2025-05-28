@@ -6,22 +6,32 @@ import io.micronaut.core.type.Argument;
 import io.micronaut.http.HttpRequest;
 import io.micronaut.http.HttpResponse;
 import io.micronaut.http.HttpStatus;
+import io.micronaut.http.MediaType;
 import io.micronaut.http.client.HttpClient;
 import io.micronaut.http.client.annotation.Client;
 import io.micronaut.http.client.exceptions.HttpClientResponseException;
+import io.micronaut.security.authentication.UsernamePasswordCredentials;
+import io.micronaut.security.token.render.BearerAccessRefreshToken;
 import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
 import jakarta.inject.Inject;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtensionContext;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 @MicronautTest
 public class AdminProductsControllerTest {
 
+    final static Logger LOG = LoggerFactory.getLogger(AdminProductsControllerTest.class);
     @Inject
     @Client("/admin/products")
     HttpClient client;
+
+    @Inject
+    @Client("/") // Root of the app
+    HttpClient rootClient;
 
     @Inject
     InMemoryStore store;
@@ -30,14 +40,18 @@ public class AdminProductsControllerTest {
     @Test
     void aNewProductCanBeAddedUsingTheAdminPostEndpoint(){
 
+        var token = startSession();
+
         var productToAdd = new Product(1234, "my-test-product", Product.Type.OTHER);
 
         store.getProducts().remove(productToAdd.id());
 
         assertNull(store.getProducts().get(productToAdd.id()));
 
+
+
         var response = client.toBlocking().exchange(
-                HttpRequest.POST("/", productToAdd),
+                HttpRequest.POST("/", productToAdd).accept(MediaType.APPLICATION_JSON).bearerAuth(token.getAccessToken()),
                 Product.class
         );
 
@@ -55,20 +69,21 @@ public class AdminProductsControllerTest {
 
     @Test
     void addingAProductTwiceResultsInConflict(){
+        var token = startSession();
         var productToAdd = new Product(1234, "my-test-product", Product.Type.OTHER);
 
         store.getProducts().remove(productToAdd.id());
         assertNull(store.getProducts().get(productToAdd.id()));
 
         var response = client.toBlocking().exchange(
-                HttpRequest.POST("/", productToAdd),
+                HttpRequest.POST("/", productToAdd).accept(MediaType.APPLICATION_JSON).bearerAuth(token.getAccessToken()),
                 Product.class
         );
 
         assertEquals(HttpStatus.CREATED, response.getStatus());
 
         var expectedConflict = assertThrows(HttpClientResponseException.class,
-                () -> client.toBlocking().exchange(HttpRequest.POST("/", productToAdd)));
+                () -> client.toBlocking().exchange(HttpRequest.POST("/", productToAdd).accept(MediaType.APPLICATION_JSON).bearerAuth(token.getAccessToken())));
 
         assertEquals(HttpStatus.CONFLICT, expectedConflict.getStatus());
 
@@ -77,6 +92,7 @@ public class AdminProductsControllerTest {
 
     @Test
     void aProductCanBeUpdatedUsingTheAdminPutEndpoint(){
+        var token = startSession();
         var productToUpdate = new Product(999, "old-value", Product.Type.OTHER);
 
         store.getProducts().put(productToUpdate.id(), productToUpdate);
@@ -86,7 +102,7 @@ public class AdminProductsControllerTest {
         var updateRequest = new UpdateProductRequest("new-value", Product.Type.TEA);
 
         var response = client.toBlocking().exchange(
-                HttpRequest.PUT("/" + productToUpdate.id(), updateRequest),
+                HttpRequest.PUT("/" + productToUpdate.id(), updateRequest).accept(MediaType.APPLICATION_JSON).bearerAuth(token.getAccessToken()),
                 Product.class
         );
 
@@ -100,6 +116,7 @@ public class AdminProductsControllerTest {
     @Test
     void aNonExistingProductWillBeAddedWhenUsingTheAdminPutEndpoint(){
 
+        var token = startSession();
         var productId = 999;
         store.getProducts().remove(productId);
 
@@ -108,7 +125,7 @@ public class AdminProductsControllerTest {
         var updateRequest = new UpdateProductRequest("new-value", Product.Type.TEA);
 
         var response = client.toBlocking().exchange(
-          HttpRequest.PUT("/" + productId, updateRequest),
+          HttpRequest.PUT("/" + productId, updateRequest).accept(MediaType.APPLICATION_JSON).bearerAuth(token.getAccessToken()),
           Product.class
         );
 
@@ -123,7 +140,7 @@ public class AdminProductsControllerTest {
     @Test
     void aProductCanBeDeletedUsingTheAdminDeleteEndpoint(){
         var productToDelete = new Product(987, "delete-me", Product.Type.OTHER);
-
+        var token = startSession();
         store.addProduct(productToDelete);
 
 
@@ -132,7 +149,7 @@ public class AdminProductsControllerTest {
 
 
         final HttpResponse<Product> response = client.toBlocking().exchange(
-                HttpRequest.DELETE("/" + productToDelete.id()),
+                HttpRequest.DELETE("/" + productToDelete.id()).accept(MediaType.APPLICATION_JSON).bearerAuth(token.getAccessToken()),
                 Argument.of(Product.class)
         );
 
@@ -146,14 +163,35 @@ public class AdminProductsControllerTest {
     @Test
     void deletingANonExistingProductResultsInNotFoundResponse(){
         var productId = 987;
+        var token = startSession();
         store.deleteProduct(productId);
         assertNull(store.getProducts().get(productId));
 
         var response = assertThrows(HttpClientResponseException.class,
                 () -> client.toBlocking().exchange(
-                        HttpRequest.DELETE("/" + productId)
+                        HttpRequest.DELETE("/" + productId).accept(MediaType.APPLICATION_JSON).bearerAuth(token.getAccessToken())
                 ));
 
         assertEquals(HttpStatus.NOT_FOUND, response.getStatus());
+    }
+
+    BearerAccessRefreshToken startSession(){
+        final UsernamePasswordCredentials credentials = new UsernamePasswordCredentials("my-user", "secret");
+        var login = HttpRequest.POST("/login", credentials);
+
+        HttpResponse<BearerAccessRefreshToken> response = null;
+         response = rootClient.toBlocking().exchange(login, BearerAccessRefreshToken.class);
+
+        assertEquals(HttpStatus.OK, response.getStatus());
+
+        final BearerAccessRefreshToken token = response.body();
+
+        assertNotNull(token);
+        assertEquals("my-user", response.body().getUsername());
+
+        LOG.debug("Login Bearer Token: {} expires in {}", response.body().getAccessToken(), response.body().getExpiresIn());
+
+        return token;
+
     }
 }

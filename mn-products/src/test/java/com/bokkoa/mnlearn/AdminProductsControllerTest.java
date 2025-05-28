@@ -37,6 +37,9 @@ public class AdminProductsControllerTest {
     InMemoryStore store;
 
 
+    String bearerPrefix = "Bearer ";
+
+
     @Test
     void aNewProductCanBeAddedUsingTheAdminPostEndpoint(){
 
@@ -49,7 +52,8 @@ public class AdminProductsControllerTest {
         assertNull(store.getProducts().get(productToAdd.id()));
 
 
-
+     /*
+        // CONVENTIONAL CLIENT
         var response = client.toBlocking().exchange(
                 HttpRequest.POST("/", productToAdd).accept(MediaType.APPLICATION_JSON).bearerAuth(token.getAccessToken()),
                 Product.class
@@ -61,8 +65,15 @@ public class AdminProductsControllerTest {
         assertEquals(productToAdd.name(), response.getBody().get().name());
         assertEquals(productToAdd.type(), response.getBody().get().type());
 
+        */
 
-
+        // CUSTOM REST CLIENT
+        final HttpResponse<Product> response = jwtClient.addNewProduct(bearerPrefix + token.getAccessToken(), productToAdd);
+        assertEquals(HttpStatus.CREATED, response.getStatus());
+        assertTrue(response.getBody().isPresent());
+        assertEquals(productToAdd.id(), response.getBody().get().id());
+        assertEquals(productToAdd.name(), response.getBody().get().name());
+        assertEquals(productToAdd.type(), response.getBody().get().type());
 
 
     }
@@ -101,10 +112,26 @@ public class AdminProductsControllerTest {
 
         var updateRequest = new UpdateProductRequest("new-value", Product.Type.TEA);
 
+        /*
+
+        // CONVENTIONAL CLIENT
+
         var response = client.toBlocking().exchange(
                 HttpRequest.PUT("/" + productToUpdate.id(), updateRequest).accept(MediaType.APPLICATION_JSON).bearerAuth(token.getAccessToken()),
                 Product.class
         );
+
+        assertEquals(HttpStatus.OK, response.getStatus());
+
+        var productFromStore = store.getProducts().get(productToUpdate.id());
+        assertEquals(updateRequest.name(), productFromStore.name());
+        assertEquals(updateRequest.type(), productFromStore.type());
+
+        */
+
+
+        // CUSTOM REST CLIENT
+        final HttpResponse<Product> response = jwtClient.updateProduct(bearerPrefix + token.getAccessToken(), productToUpdate.id(), updateRequest);
 
         assertEquals(HttpStatus.OK, response.getStatus());
 
@@ -148,10 +175,25 @@ public class AdminProductsControllerTest {
         assertTrue(store.getProducts().containsValue(productToDelete));
 
 
-        final HttpResponse<Product> response = client.toBlocking().exchange(
+      /*
+
+      // CONVENTIONAL CLIENT
+
+      final HttpResponse<Product> response = client.toBlocking().exchange(
                 HttpRequest.DELETE("/" + productToDelete.id()).accept(MediaType.APPLICATION_JSON).bearerAuth(token.getAccessToken()),
                 Argument.of(Product.class)
         );
+
+        assertEquals(HttpStatus.OK, response.getStatus());
+        assertTrue(response.getBody().isPresent());
+        assertEquals(productToDelete.id(), response.getBody().get().id());
+        assertEquals(productToDelete.name(), response.getBody().get().name());
+        assertEquals(productToDelete.type(), response.getBody().get().type());
+
+        */
+
+        // CUSTOM REST CLIENT
+        final HttpResponse<Product> response = jwtClient.deleteProduct(bearerPrefix + token.getAccessToken(), productToDelete.id());
 
         assertEquals(HttpStatus.OK, response.getStatus());
         assertTrue(response.getBody().isPresent());

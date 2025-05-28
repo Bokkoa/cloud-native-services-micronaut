@@ -1,6 +1,7 @@
 package com.bokkoa.mnlearn;
 
 import com.bokkoa.mnlearn.admin.product.UpdateProductRequest;
+import com.bokkoa.mnlearn.auth.jwt.JWTClient;
 import com.bokkoa.mnlearn.product.Product;
 import io.micronaut.core.type.Argument;
 import io.micronaut.http.HttpRequest;
@@ -15,7 +16,6 @@ import io.micronaut.security.token.render.BearerAccessRefreshToken;
 import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
 import jakarta.inject.Inject;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtensionContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -31,7 +31,7 @@ public class AdminProductsControllerTest {
 
     @Inject
     @Client("/") // Root of the app
-    HttpClient rootClient;
+    JWTClient jwtClient;
 
     @Inject
     InMemoryStore store;
@@ -177,19 +177,13 @@ public class AdminProductsControllerTest {
 
     BearerAccessRefreshToken startSession(){
         final UsernamePasswordCredentials credentials = new UsernamePasswordCredentials("my-user", "secret");
-        var login = HttpRequest.POST("/login", credentials);
 
-        HttpResponse<BearerAccessRefreshToken> response = null;
-         response = rootClient.toBlocking().exchange(login, BearerAccessRefreshToken.class);
-
-        assertEquals(HttpStatus.OK, response.getStatus());
-
-        final BearerAccessRefreshToken token = response.body();
+        final BearerAccessRefreshToken token = jwtClient.login(credentials);
 
         assertNotNull(token);
-        assertEquals("my-user", response.body().getUsername());
+        assertEquals("my-user", token.getUsername());
 
-        LOG.debug("Login Bearer Token: {} expires in {}", response.body().getAccessToken(), response.body().getExpiresIn());
+        LOG.debug("Login Bearer Token: {} expires in {}", token.getAccessToken(), token.getExpiresIn());
 
         return token;
 
